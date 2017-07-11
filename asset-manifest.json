@@ -1,6 +1,8 @@
 {
-  "main.css": "static/css/main.35ab92d3.css",
-  "main.css.map": "static/css/main.35ab92d3.css.map",
+  "main.css": "static/css/main.760be9c4.css",
+  "main.css.map": "static/css/main.760be9c4.css.map",
   "main.js": "static/js/main.50a3d9a3.js",
-  "main.js.map": "static/js/main.50a3d9a3.js.map"
+  "main.js.map": "static/js/main.50a3d9a3.js.map",
+  "static\\media\\bomb.png": "static/media/bomb.c4804381.png",
+  "static\\media\\flag.png": "static/media/flag.7fd9a480.png"
 }
