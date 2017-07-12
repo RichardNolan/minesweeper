@@ -136,8 +136,8 @@ class Minesweeper extends Component {
 
     getScore(){
         console.log("GAME OVER")
-        let difficulty = Math.pow(1+(this.state.number_of_mines/Math.pow(this.state.grid_size, 2)),10)    
-        let score = Math.round((1/this.state.timer)*(difficulty*10000))
+        let difficulty = 1+(this.state.number_of_mines/Math.pow(this.state.grid_size, 2) )   
+        let score = Math.round((Math.pow(difficulty,11)/this.state.timer)*10000)
         this.setState({score:score}, ()=>{
             if (typeof(Storage) !== "undefined") {
                 if(!localStorage.getItem("high_score")) localStorage.setItem("high_score", "0");
