@@ -96,9 +96,9 @@ class Minesweeper extends Component {
 
     flag(id, e){
         if(e) e.preventDefault()
-        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
+        this.startTimer()
         let grid = this.state.grid.map(el=>{
-            if(el.id===id) el.is_flagged = !el.is_flagged
+            if(el.id===id && !el.is_revealed) el.is_flagged = !el.is_flagged
             return el
         })
         this.setState({grid:grid})
@@ -106,7 +106,7 @@ class Minesweeper extends Component {
     
     reveal(id, e){
         if(e) e.preventDefault()
-        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
+        this.startTimer()
         let grid=this.state.grid.map(el=>{
             if(el.id===id && !el.is_flagged) el.is_revealed=true
             if(el.id===id && el.is_mine && !el.is_flagged) this.gameOver()
@@ -115,7 +115,9 @@ class Minesweeper extends Component {
         })
         this.setState({grid:grid})
     }
-    
+    startTimer(){
+        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
+    }
     updateClock(){
         if(this.state.grid.filter(el=>!el.is_revealed).length===this.state.number_of_mines) clearInterval(this.timer)
         this.setState(ps=>({timer:ps.timer+1}))
@@ -137,7 +139,7 @@ class Minesweeper extends Component {
         this.setState({number_of_mines:parseInt(e.target.value, 10)}, ()=>this.buildGrid())
     }
     render () {
-        let flags = this.state.grid.filter(el=>el.is_flagged).length
+        let mines_marked = this.state.grid.filter(el=>el.is_flagged).length
         let grid = this.state.grid.map((s, index)=>{
                return <Square 
                 key={index} 
@@ -159,11 +161,15 @@ class Minesweeper extends Component {
                 <div style={{'width':(this.state.grid_size*3)+'0px'}} className='minesweeper'>
                     {grid}
                 <div>
-                    {flags}
-                    <button onClick={this.buildGrid.bind(this)}>Restart</button>
-                    Size: <input type="number" value={this.state.grid_size} onChange={this.changeGridSize.bind(this)}/>
-                    Bombs: <input type="number" value={this.state.number_of_mines} onChange={this.changeNumberOfMines.bind(this)}/>
-                    {timer}
+                    <div className="label icon flag"><div className="badge">{mines_marked}</div></div>
+                    <div className="label icon mine">
+                        <input type="number" value={this.state.number_of_mines} onChange={this.changeNumberOfMines.bind(this)}/>
+                    </div>
+                    <div className="label icon grid">
+                        <input type="number" value={this.state.grid_size} onChange={this.changeGridSize.bind(this)}/>
+                    </div>
+                    <div className="label icon timer">{timer}</div>
+                    <div className="label icon clearfix"><button onClick={this.buildGrid.bind(this)} className="go">GO</button></div>
                 </div>
             </div>
         )
