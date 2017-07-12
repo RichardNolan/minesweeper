@@ -141,7 +141,7 @@ class Minesweeper extends Component {
         this.setState({score:score}, ()=>{
             if (typeof(Storage) !== "undefined") {
                 if(!localStorage.getItem("high_score")) localStorage.setItem("high_score", "0");
-                if(score>parseInt(localStorage.getItem("high_score"))){
+                if(score>parseInt(localStorage.getItem("high_score"), 10)){
                     localStorage.setItem("high_score", score.toString());
                     alert("NEW HIGH SCORE!!!")
                 }
