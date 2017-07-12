@@ -8,6 +8,7 @@ class Minesweeper extends Component {
             grid_size:10,
             grid:[],
             number_of_mines:20,
+            score:0,
             timer:0
         }
         this.timer = null
@@ -17,9 +18,13 @@ class Minesweeper extends Component {
         this.buildGrid()
     }
 
+
+    /***************  SETUP GAME */
+
     buildGrid(){
         let grid = this.emptyGrid()
-        this.setState({grid:grid, timer:0}, ()=>{
+        this.setState({grid:grid, timer:0, score:0}, ()=>{
+            this.resetTimer()
             this.plantMines()  
         })
     }
@@ -80,6 +85,12 @@ class Minesweeper extends Component {
         }))
     }
 
+    /**  END SETUP FUNCTIONS */
+
+
+
+
+    /**********       GAMEPLAY FUNCTIONS */
     revealBlanks(el){
         let surrounding_squares = this.surroundingSquares(el)
         this.state.grid.forEach(grid_square=>{
@@ -115,22 +126,47 @@ class Minesweeper extends Component {
         })
         this.setState({grid:grid})
     }
-    startTimer(){
-        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
+
+    isGameFinished(){
+        if(this.state.grid.filter(el=>!el.is_revealed).length===this.state.number_of_mines){
+            clearInterval(this.timer);
+            this.getScore()
+        }
     }
-    updateClock(){
-        if(this.state.grid.filter(el=>!el.is_revealed).length===this.state.number_of_mines) clearInterval(this.timer)
-        this.setState(ps=>({timer:ps.timer+1}))
+
+    getScore(){
+        console.log("GAME OVER")
+        let difficulty = Math.pow(1+(this.state.number_of_mines/Math.pow(this.state.grid_size, 2)),10)    
+        let score = Math.round((1/this.state.timer)*(difficulty*10000))
+        this.setState({score:score}, ()=>{
+            if (typeof(Storage) !== "undefined") {
+                if(!localStorage.getItem("high_score")) localStorage.setItem("high_score", "0");
+                if(score>parseInt(localStorage.getItem("high_score"))){
+                    localStorage.setItem("high_score", score.toString());
+                    alert("NEW HIGH SCORE!!!")
+                }
+                
+            } 
+        })
     }
+
     gameOver(){
         let grid = this.state.grid.map(el=>{
             el.is_revealed = true
             return el
         })
         this.setState({grid:grid})
-        clearTimeout(this.timer)
-        this.timer = null
+        this.resetTimer()
     }
+
+    /** END GAMPLAY FUNCTIONS */
+
+
+
+
+
+
+    /*****************         GRID OPTIONS */
 
     changeGridSize(e){
         this.setState({grid_size:parseInt(e.target.value, 10)}, ()=>this.buildGrid())
@@ -138,6 +174,36 @@ class Minesweeper extends Component {
     changeNumberOfMines(e){        
         this.setState({number_of_mines:parseInt(e.target.value, 10)}, ()=>this.buildGrid())
     }
+
+    /** END GRID OPTIONS */
+
+
+
+
+
+
+
+
+    /*****************         TIMER FUNCTIONS */
+
+    startTimer(){
+        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
+    }
+    resetTimer(){        
+        clearTimeout(this.timer)
+        this.timer = null
+    }
+    updateClock(){
+        this.isGameFinished()
+        this.setState(ps=>({timer:ps.timer+1}))
+    }
+
+    /**  END TIMER FUNCTIONS */
+
+
+
+
+
     render () {
         let mines_marked = this.state.grid.filter(el=>el.is_flagged).length
         let grid = this.state.grid.map((s, index)=>{
@@ -156,20 +222,23 @@ class Minesweeper extends Component {
                 revealBlanks={this.revealBlanks.bind(this, s.y, s.x)}
                 />
         })
-        let timer = this.state.timer
+
         return (
                 <div style={{'width':(this.state.grid_size*3)+'0px'}} className='minesweeper'>
-                    {grid}
-                <div>
-                    <div className="label icon flag"><div className="badge">{mines_marked}</div></div>
+                    <div className="toolbar clearfix">
+                        <div className="label icon flag"><div className="badge">{mines_marked}</div></div>
+                        <div className="label icon"><button onClick={this.buildGrid.bind(this)} className="go">GO</button></div>
+                        <div className="label icon timer">{this.state.timer}</div>
+                    </div>
+                    <div id='grid' className="clearfix">{grid}</div>
+                <div className="toolbar clearfix">
                     <div className="label icon mine">
                         <input type="number" value={this.state.number_of_mines} onChange={this.changeNumberOfMines.bind(this)}/>
                     </div>
+                    <div className="label icon score">{this.state.score}</div>
                     <div className="label icon grid">
                         <input type="number" value={this.state.grid_size} onChange={this.changeGridSize.bind(this)}/>
-                    </div>
-                    <div className="label icon timer">{timer}</div>
-                    <div className="label icon clearfix"><button onClick={this.buildGrid.bind(this)} className="go">GO</button></div>
+                    </div>                    
                 </div>
             </div>
         )
