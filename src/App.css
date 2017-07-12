@@ -28,11 +28,11 @@
   transform: rotate(360deg);
 }
 .mine{
-  background-image: url(bomb.png);
+  background-image: url(./bomb.png);
   background-color: transparent;
 }
 .flag{
-  background-image: url(flag.png);
+  background-image: url(./flag.png);
   background-color: transparent;
 }
 .icon{
