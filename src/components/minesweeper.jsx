@@ -9,7 +9,12 @@ class Minesweeper extends Component {
             grid:[],
             number_of_mines:20,
             score:0,
-            timer:0
+            timer:0,
+            show_blast:false,
+            blast:{
+                x:0,
+                y:0
+            }
         }
         this.timer = null
     }
@@ -23,7 +28,7 @@ class Minesweeper extends Component {
 
     buildGrid(){
         let grid = this.emptyGrid()
-        this.setState({grid:grid, timer:0, score:0}, ()=>{
+        this.setState({grid:grid, timer:0, score:0, show_blast:false}, ()=>{
             this.resetTimer()
             this.plantMines()  
         })
@@ -120,13 +125,20 @@ class Minesweeper extends Component {
         this.startTimer()
         let grid=this.state.grid.map(el=>{
             if(el.id===id && !el.is_flagged) el.is_revealed=true
-            if(el.id===id && el.is_mine && !el.is_flagged) this.gameOver()
+            if(el.id===id && el.is_mine && !el.is_flagged){
+                this.blast(e)
+                this.gameOver()
+            }
             if(el.id===id && el.surrounding_mines===0 && !el.is_flagged) this.revealBlanks(el)
             return el
         })
         this.setState({grid:grid})
     }
-
+    blast(e){
+        let blast = {x:e.pageX, y:e.pageY}
+        this.setState({show_blast:true, blast:blast})
+        console.dir()
+    }
     isGameFinished(){
         if(this.state.grid.filter(el=>!el.is_revealed).length===this.state.number_of_mines){
             clearInterval(this.timer);
@@ -155,6 +167,7 @@ class Minesweeper extends Component {
             el.is_revealed = true
             return el
         })
+
         this.setState({grid:grid})
         this.resetTimer()
     }
@@ -222,15 +235,18 @@ class Minesweeper extends Component {
                 revealBlanks={this.revealBlanks.bind(this, s.y, s.x)}
                 />
         })
-
+        let boom = this.state.show_blast ? 'boom' : ''
         return (
+            <div style={{'position':'relative'}}>
                 <div style={{'width':(this.state.grid_size*3)+'0px'}} className='minesweeper'>
                     <div className="toolbar clearfix">
                         <div className="label icon flag"><div className="badge">{mines_marked}</div></div>
                         <div className="label icon"><button onClick={this.buildGrid.bind(this)} className="go">GO</button></div>
                         <div className="label icon timer">{this.state.timer}</div>
                     </div>
-                    <div id='grid' className="clearfix">{grid}</div>
+                    <div id='grid' className="clearfix">
+                        {grid}
+                    </div>                   
                 <div className="toolbar clearfix">
                     <div className="label icon mine">
                         <input type="number" value={this.state.number_of_mines} onChange={this.changeNumberOfMines.bind(this)}/>
@@ -241,6 +257,8 @@ class Minesweeper extends Component {
                     </div>                    
                 </div>
             </div>
+                <div className={'blast '+boom} style={{'left':this.state.blast.x+'px', 'top':this.state.blast.y+'px'}}/>
+        </div>
         )
     }
 }
