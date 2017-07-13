@@ -4,23 +4,26 @@ class Square extends Component {
 
 
     render () {
-        let revealed = this.props.is_revealed ? 'revealed' : 'not-revealed'
-        let show_mine = this.props.is_revealed && this.props.is_mine ? 'mine' : null
-        let flag = this.props.is_flagged ? 'flag' : null
-        let incorrect_flag = this.props.is_flagged
-                    && !this.props.is_mine
-                    && this.props.is_revealed
-                ? 'incorrect_flag' : null
-        let count = this.props.is_revealed 
-                    && !this.props.is_mine 
-                    && !this.props.is_flagged
-                    && this.props.surrounding_mines
-                ? this.props.surrounding_mines : null
+        let {is_revealed, is_flagged, is_mine, surrounding_mines, id} = this.props.s
+        let {reveal, flag} = this.props
+        
+        let revealed = is_revealed ? 'revealed' : 'not-revealed'
+        let show_mine = this.props.is_revealed && is_mine ? 'mine' : ''
+        let flagged = is_flagged ? 'flag' : ''
+        let incorrect_flag = is_flagged
+                    && !is_mine
+                    && is_revealed
+                ? 'incorrect_flag' : ''
+        let count = is_revealed 
+                    && !is_mine 
+                    && !is_flagged
+                    && surrounding_mines
+                ? surrounding_mines : null
         return (
             <div 
-                className={'square icon ' + revealed + " " + show_mine+ " " + incorrect_flag+ " "+flag} 
-                onClick={this.props.reveal.bind(this, this.props.id)} 
-                onContextMenu={this.props.flag.bind(this, this.props.id)}
+                className={'square icon ' + revealed + " " + show_mine+ " " + incorrect_flag+ " "+flagged} 
+                onClick={reveal.bind(this, id)} 
+                onContextMenu={flag.bind(this, id)}
             >
                 {count}
             </div>

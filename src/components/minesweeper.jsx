@@ -219,23 +219,18 @@ class Minesweeper extends Component {
 
     render () {
         let mines_marked = this.state.grid.filter(el=>el.is_flagged).length
+        let boom = this.state.show_blast ? 'boom' : ''
+        let show_blast = this.state.show_blast ? 'block' : 'none'
         let grid = this.state.grid.map((s, index)=>{
                return <Square 
-                key={index} 
-                id={s.id}
-                x={s.x}
-                y={s.y}
-                is_mine={s.is_mine} 
-                is_flagged={s.is_flagged} 
-                is_revealed={s.is_revealed}
-                surrounding_mines={s.surrounding_mines}
+                s={s}
+                key={index}              
                 flag={this.flag.bind(this)}
                 reveal={this.reveal.bind(this)}
                 gameOver={this.gameOver.bind(this)} 
                 revealBlanks={this.revealBlanks.bind(this, s.y, s.x)}
                 />
         })
-        let boom = this.state.show_blast ? 'boom' : ''
         return (
             <div style={{'position':'relative'}}>
                 <div style={{'width':(this.state.grid_size*3)+'0px'}} className='minesweeper'>
@@ -257,7 +252,7 @@ class Minesweeper extends Component {
                     </div>                    
                 </div>
             </div>
-                <div className={'blast '+boom} style={{'left':this.state.blast.x+'px', 'top':this.state.blast.y+'px'}}/>
+                <div className={'blast '+boom} style={{'left':this.state.blast.x+'px', 'top':this.state.blast.y+'px', 'display':show_blast}}/>
         </div>
         )
     }
