@@ -8,7 +8,7 @@ class Square extends Component {
         let {reveal, flag} = this.props
         
         let revealed = is_revealed ? 'revealed' : 'not-revealed'
-        let show_mine = this.props.is_revealed && is_mine ? 'mine' : ''
+        let show_mine = is_revealed && is_mine ? 'mine' : ''
         let flagged = is_flagged ? 'flag' : ''
         let incorrect_flag = is_flagged
                     && !is_mine
