@@ -125,7 +125,7 @@ class Minesweeper extends Component {
         this.startTimer()
         let grid=this.state.grid.map(el=>{
             if(el.id===id && !el.is_flagged) el.is_revealed=true
-            if(el.id===id && el.is_mine && !el.is_flagged){
+            if(el.id===id && el.is_mine && !el.is_flagged && !this.state.show_blast){
                 this.blast(e)
                 this.gameOver()
             }
