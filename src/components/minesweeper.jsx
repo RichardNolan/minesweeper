@@ -1,261 +1,222 @@
-import React, { Component } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Square from './square.jsx'
 
-class Minesweeper extends Component {
-    constructor(){
-        super()
-        this.state = {
-            grid_size:10,
-            grid:[],
-            number_of_mines:20,
-            score:0,
-            timer:0,
-            show_blast:false,
-            blast:{
-                x:0,
-                y:0
+// Pure helper functions
+
+function surroundingSquaresOf(s, gridSize) {
+    const squares = []
+    for (let r = s.y - 1; r <= s.y + 1; r++) {
+        for (let c = s.x - 1; c <= s.x + 1; c++) {
+            if (
+                !(s.y === r && s.x === c) &&
+                r >= 0 && c >= 0 &&
+                c < gridSize && r < gridSize
+            ) squares.push({ x: c, y: r })
+        }
+    }
+    return squares
+}
+
+function createEmptyGrid(gridSize) {
+    const total = Math.pow(gridSize, 2)
+    return new Array(total).fill(0).map((_, index) => ({
+        id: index,
+        y: Math.floor(index / gridSize),
+        x: index % gridSize,
+        surrounding_mines: 0,
+        is_revealed: false,
+        is_mine: false,
+        is_flagged: false,
+    }))
+}
+
+function plantMinesOnGrid(grid, numberOfMines, gridSize) {
+    let remaining = numberOfMines
+    const newGrid = grid.map(el => ({ ...el }))
+    while (remaining > 0) {
+        const pos = Math.floor(Math.random() * newGrid.length)
+        if (!newGrid[pos].is_mine) {
+            newGrid[pos].is_mine = true
+            const surrounding = surroundingSquaresOf(newGrid[pos], gridSize)
+            for (const sq of surrounding) {
+                const idx = newGrid.findIndex(el => el.x === sq.x && el.y === sq.y)
+                if (idx !== -1) newGrid[idx].surrounding_mines += 1
+            }
+            remaining -= 1
+        }
+    }
+    return newGrid
+}
+
+function revealSquare(grid, id, gridSize) {
+    const square = grid.find(el => el.id === id)
+    if (!square || square.is_flagged || square.is_revealed) return grid
+
+    let newGrid = grid.map(el => el.id === id ? { ...el, is_revealed: true } : el)
+
+    if (square.surrounding_mines === 0 && !square.is_mine) {
+        const surrounding = surroundingSquaresOf(square, gridSize)
+        for (const pos of surrounding) {
+            const sq = newGrid.find(el => el.x === pos.x && el.y === pos.y)
+            if (sq && !sq.is_revealed && !sq.is_flagged) {
+                newGrid = revealSquare(newGrid, sq.id, gridSize)
             }
         }
-        this.timer = null
     }
 
-    componentDidMount(){
-        this.buildGrid()
-    }
+    return newGrid
+}
 
+function Minesweeper() {
+    const [gridSize, setGridSize] = useState(10)
+    const [numberOfMines, setNumberOfMines] = useState(20)
+    const [grid, setGrid] = useState([])
+    const [score, setScore] = useState(0)
+    const [timer, setTimer] = useState(0)
+    const [showBlast, setShowBlast] = useState(false)
+    const [blast, setBlast] = useState({ x: 0, y: 0 })
 
-    /***************  SETUP GAME */
+    const timerRef = useRef(null)
 
-    buildGrid(){
-        let grid = this.emptyGrid()
-        this.setState({grid:grid, timer:0, score:0, show_blast:false}, ()=>{
-            this.resetTimer()
-            this.plantMines()  
-        })
-    }
+    // Keep a ref in sync with state so interval callbacks always read fresh values
+    const gameStateRef = useRef({ grid: [], numberOfMines: 20, gridSize: 10, timer: 0 })
+    gameStateRef.current = { grid, numberOfMines, gridSize, timer }
 
-    plantMines(){  
-        let {number_of_mines, grid} = this.state       
+    const resetTimer = useCallback(() => {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+    }, [])
 
-        while(number_of_mines>0){
-            let mine_position = Math.floor(Math.random()*this.state.grid.length)
-            if(!grid[mine_position].is_mine){
-                grid[mine_position].is_mine = true
-                
+    const calculateAndSetScore = useCallback((mines, size, time) => {
+        const difficulty = 1 + (mines / Math.pow(size, 2))
+        const calculatedScore = Math.round((Math.pow(difficulty, 11) / (time || 1)) * 10000)
+        setScore(calculatedScore)
+        if (typeof Storage !== 'undefined') {
+            if (!localStorage.getItem('high_score')) localStorage.setItem('high_score', '0')
+            if (calculatedScore > parseInt(localStorage.getItem('high_score'), 10)) {
+                localStorage.setItem('high_score', calculatedScore.toString())
+                alert('NEW HIGH SCORE!!!')
+            }
+        }
+    }, [])
 
-                let surrounding_squares = this.surroundingSquares(grid[mine_position])
-                for(let s in surrounding_squares){
-                    let square = surrounding_squares[s]
-                    grid.map(el=>{
-                        if(el.x===square.x && el.y===square.y){
-                            el.surrounding_mines+=1
-                        }
-                        return el
-                    })
+    const startTimer = useCallback(() => {
+        if (!timerRef.current) {
+            timerRef.current = setInterval(() => {
+                const { grid: currentGrid, numberOfMines: mines, gridSize: size, timer: currentTime } = gameStateRef.current
+                if (currentGrid.filter(el => !el.is_revealed).length === mines) {
+                    clearInterval(timerRef.current)
+                    timerRef.current = null
+                    calculateAndSetScore(mines, size, currentTime)
                 }
+                setTimer(prev => prev + 1)
+            }, 1000)
+        }
+    }, [calculateAndSetScore])
 
+    const buildGrid = useCallback((size, mines) => {
+        resetTimer()
+        const empty = createEmptyGrid(size)
+        const newGrid = plantMinesOnGrid(empty, mines, size)
+        setGrid(newGrid)
+        setTimer(0)
+        setScore(0)
+        setShowBlast(false)
+    }, [resetTimer])
 
-                number_of_mines-=1
-            }
+    useEffect(() => {
+        buildGrid(gridSize, numberOfMines)
+        return resetTimer
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [buildGrid, resetTimer])
+
+    function handleReveal(id, e) {
+        if (e) e.preventDefault()
+        startTimer()
+
+        const square = grid.find(el => el.id === id)
+        if (!square || square.is_flagged || square.is_revealed) return
+
+        if (square.is_mine && !showBlast) {
+            if (e) setBlast({ x: e.pageX, y: e.pageY })
+            setShowBlast(true)
+            setGrid(prev => prev.map(el => ({ ...el, is_revealed: true })))
+            resetTimer()
+            return
         }
 
-        this.setState({grid:grid})
-    }
+        const newGrid = revealSquare(grid, id, gridSize)
+        setGrid(newGrid)
 
-    surroundingSquares(s){
-        let surrounding_squares = []
-        for(let r=s.y-1;r<=s.y+1;r++){
-            for(let c=s.x-1;c<=s.x+1;c++){
-                if( !(s.y===r && s.x===c)    
-                    &&  r>=0
-                    &&  c>=0
-                    &&  c<this.state.grid_size
-                    &&  r<this.state.grid_size
-                )  surrounding_squares.push({x:c,y:r})
-            }
-        }
-        return surrounding_squares
-    }
-
-    emptyGrid(){
-        let total = Math.pow(this.state.grid_size, 2)
-        return new Array(total).fill(0).map((el, index)=>({
-            id:index,
-            y:Math.floor(index/this.state.grid_size),
-            x:index%this.state.grid_size,
-            surrounding_mines:0,
-            is_revealed: false,
-            is_mine:false,
-            is_flagged: false
-        }))
-    }
-
-    /**  END SETUP FUNCTIONS */
-
-
-
-
-    /**********       GAMEPLAY FUNCTIONS */
-    revealBlanks(el){
-        let surrounding_squares = this.surroundingSquares(el)
-        this.state.grid.forEach(grid_square=>{
-            for(let s in surrounding_squares){
-                if(
-                    grid_square.x===surrounding_squares[s].x && 
-                    grid_square.y===surrounding_squares[s].y &&
-                    !grid_square.is_revealed
-                    ) this.reveal(grid_square.id)
-                
-            }
-        })
-    }
-
-    flag(id, e){
-        if(e) e.preventDefault()
-        this.startTimer()
-        let grid = this.state.grid.map(el=>{
-            if(el.id===id && !el.is_revealed) el.is_flagged = !el.is_flagged
-            return el
-        })
-        this.setState({grid:grid})
-    }
-    
-    reveal(id, e){
-        if(e) e.preventDefault()
-        this.startTimer()
-        let grid=this.state.grid.map(el=>{
-            if(el.id===id && !el.is_flagged) el.is_revealed=true
-            if(el.id===id && el.is_mine && !el.is_flagged && !this.state.show_blast){
-                this.blast(e)
-                this.gameOver()
-            }
-            if(el.id===id && el.surrounding_mines===0 && !el.is_flagged) this.revealBlanks(el)
-            return el
-        })
-        this.setState({grid:grid})
-    }
-    blast(e){
-        let blast = {x:e.pageX, y:e.pageY}
-        this.setState({show_blast:true, blast:blast})
-        console.dir()
-    }
-    isGameFinished(){
-        if(this.state.grid.filter(el=>!el.is_revealed).length===this.state.number_of_mines){
-            clearInterval(this.timer);
-            this.getScore()
+        // Check if all non-mine squares are revealed
+        if (newGrid.filter(el => !el.is_revealed).length === numberOfMines) {
+            resetTimer()
+            calculateAndSetScore(numberOfMines, gridSize, timer)
         }
     }
 
-    getScore(){
-        console.log("GAME OVER")
-        let difficulty = 1+(this.state.number_of_mines/Math.pow(this.state.grid_size, 2) )   
-        let score = Math.round((Math.pow(difficulty,11)/this.state.timer)*10000)
-        this.setState({score:score}, ()=>{
-            if (typeof(Storage) !== "undefined") {
-                if(!localStorage.getItem("high_score")) localStorage.setItem("high_score", "0");
-                if(score>parseInt(localStorage.getItem("high_score"), 10)){
-                    localStorage.setItem("high_score", score.toString());
-                    alert("NEW HIGH SCORE!!!")
-                }
-                
-            } 
-        })
+    function handleFlag(id, e) {
+        if (e) e.preventDefault()
+        startTimer()
+        setGrid(prev => prev.map(el =>
+            el.id === id && !el.is_revealed
+                ? { ...el, is_flagged: !el.is_flagged }
+                : el
+        ))
     }
 
-    gameOver(){
-        let grid = this.state.grid.map(el=>{
-            el.is_revealed = true
-            return el
-        })
-
-        this.setState({grid:grid})
-        this.resetTimer()
+    function handleChangeGridSize(e) {
+        const newSize = parseInt(e.target.value, 10)
+        setGridSize(newSize)
+        buildGrid(newSize, numberOfMines)
     }
 
-    /** END GAMPLAY FUNCTIONS */
-
-
-
-
-
-
-    /*****************         GRID OPTIONS */
-
-    changeGridSize(e){
-        this.setState({grid_size:parseInt(e.target.value, 10)}, ()=>this.buildGrid())
-    }
-    changeNumberOfMines(e){        
-        this.setState({number_of_mines:parseInt(e.target.value, 10)}, ()=>this.buildGrid())
+    function handleChangeNumberOfMines(e) {
+        const newMines = parseInt(e.target.value, 10)
+        setNumberOfMines(newMines)
+        buildGrid(gridSize, newMines)
     }
 
-    /** END GRID OPTIONS */
+    const minesMarked = grid.filter(el => el.is_flagged).length
+    const boom = showBlast ? 'boom' : ''
+    const blastDisplay = showBlast ? 'block' : 'none'
 
-
-
-
-
-
-
-
-    /*****************         TIMER FUNCTIONS */
-
-    startTimer(){
-        if(!this.timer) this.timer = setInterval( this.updateClock.bind(this), 1000)
-    }
-    resetTimer(){        
-        clearTimeout(this.timer)
-        this.timer = null
-    }
-    updateClock(){
-        this.isGameFinished()
-        this.setState(ps=>({timer:ps.timer+1}))
-    }
-
-    /**  END TIMER FUNCTIONS */
-
-
-
-
-
-    render () {
-        let mines_marked = this.state.grid.filter(el=>el.is_flagged).length
-        let boom = this.state.show_blast ? 'boom' : ''
-        let show_blast = this.state.show_blast ? 'block' : 'none'
-        let grid = this.state.grid.map((s, index)=>{
-               return <Square 
-                s={s}
-                key={index}              
-                flag={this.flag.bind(this)}
-                reveal={this.reveal.bind(this)}
-                gameOver={this.gameOver.bind(this)} 
-                revealBlanks={this.revealBlanks.bind(this, s.y, s.x)}
-                />
-        })
-        return (
-            <div style={{'position':'relative'}}>
-                <div style={{'width':(this.state.grid_size*3)+'0px'}} className='minesweeper'>
-                    <div className="toolbar clearfix">
-                        <div className="label icon flag"><div className="badge">{mines_marked}</div></div>
-                        <div className="label icon"><button onClick={this.buildGrid.bind(this)} className="go">GO</button></div>
-                        <div className="label icon timer">{this.state.timer}</div>
+    return (
+        <div style={{ position: 'relative' }}>
+            <div style={{ width: (gridSize * 3) + '0px' }} className="minesweeper">
+                <div className="toolbar clearfix">
+                    <div className="label icon flag"><div className="badge">{minesMarked}</div></div>
+                    <div className="label icon">
+                        <button onClick={() => buildGrid(gridSize, numberOfMines)} className="go">GO</button>
                     </div>
-                    <div id='grid' className="clearfix">
-                        {grid}
-                    </div>                   
+                    <div className="label icon timer">{timer}</div>
+                </div>
+                <div id="grid" className="clearfix">
+                    {grid.map((s, index) => (
+                        <Square
+                            s={s}
+                            key={index}
+                            flag={handleFlag}
+                            reveal={handleReveal}
+                        />
+                    ))}
+                </div>
                 <div className="toolbar clearfix">
                     <div className="label icon mine">
-                        <input type="number" value={this.state.number_of_mines} onChange={this.changeNumberOfMines.bind(this)}/>
+                        <input type="number" value={numberOfMines} onChange={handleChangeNumberOfMines} />
                     </div>
-                    <div className="label icon score">{this.state.score}</div>
+                    <div className="label icon score">{score}</div>
                     <div className="label icon grid">
-                        <input type="number" value={this.state.grid_size} onChange={this.changeGridSize.bind(this)}/>
-                    </div>                    
+                        <input type="number" value={gridSize} onChange={handleChangeGridSize} />
+                    </div>
                 </div>
             </div>
-                <div className={'blast '+boom} style={{'left':this.state.blast.x+'px', 'top':this.state.blast.y+'px', 'display':show_blast}}/>
+            <div
+                className={'blast ' + boom}
+                style={{ left: blast.x + 'px', top: blast.y + 'px', display: blastDisplay }}
+            />
         </div>
-        )
-    }
+    )
 }
 
 export default Minesweeper
