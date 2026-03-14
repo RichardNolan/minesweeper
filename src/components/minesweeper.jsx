@@ -10,6 +10,7 @@ function Minesweeper() {
   const [showBlast, setShowBlast] = useState(false)
   const [blast, setBlast] = useState({ x: 0, y: 0 })
   const timerRef = useRef(null)
+  const timerValueRef = useRef(0)
   const gridRef = useRef(grid)
   const showBlastRef = useRef(showBlast)
 
@@ -70,10 +71,12 @@ function Minesweeper() {
   const resetTimer = useCallback(() => {
     clearInterval(timerRef.current)
     timerRef.current = null
+    timerValueRef.current = 0
   }, [])
 
   const buildGrid = useCallback((size, numMines) => {
     resetTimer()
+    timerValueRef.current = 0
     const empty = emptyGrid(size)
     const withMines = plantMines(empty, numMines, size)
     setGrid(withMines)
@@ -83,6 +86,7 @@ function Minesweeper() {
   }, [emptyGrid, plantMines, resetTimer])
 
   useEffect(() => {
+    // Run only once on mount with initial gridSize and numberOfMines values
     buildGrid(gridSize, numberOfMines)
     return () => resetTimer()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -90,7 +94,11 @@ function Minesweeper() {
   const startTimer = useCallback(() => {
     if (!timerRef.current) {
       timerRef.current = setInterval(() => {
-        setTimer(t => t + 1)
+        setTimer(t => {
+          const next = t + 1
+          timerValueRef.current = next
+          return next
+        })
       }, 1000)
     }
   }, [])
@@ -108,10 +116,10 @@ function Minesweeper() {
     }
   }, [])
 
-  const reveal = useCallback((id, e, currentGridOverride) => {
+  const reveal = useCallback((id, e) => {
     if (e) e.preventDefault()
     startTimer()
-    const currentGrid = currentGridOverride || gridRef.current
+    const currentGrid = gridRef.current
 
     let blasted = false
     let newGrid = currentGrid.map(el => {
@@ -168,10 +176,7 @@ function Minesweeper() {
     if (unrevealed === numberOfMines) {
       clearInterval(timerRef.current)
       timerRef.current = null
-      setTimer(t => {
-        getScore(numberOfMines, gridSize, t > 0 ? t : 1)
-        return t
-      })
+      getScore(numberOfMines, gridSize, timerValueRef.current > 0 ? timerValueRef.current : 1)
     }
   }, [startTimer, surroundingSquares, gridSize, numberOfMines, resetTimer, getScore])
 
